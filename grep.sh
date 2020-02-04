@@ -41,20 +41,8 @@ do
                 sources+=( "$param"  )
         fi
 done
-validateFlags(){
-
-        #$1 - line_numbers_status
-        #$2 - print_only_names_status
-        if [[ $1 = "true" ]] && [[ $2 = "true" ]]
-        then
-                echo "You can't use -n and -l in one command."
-                exit 0;
-        fi
-}
-
 
 match_comparison_status=""
-
 
 function setMatchComparisonStatus (){
 
@@ -67,24 +55,32 @@ function setMatchComparisonStatus (){
         #$3 - expression index
         expression_index=$3
 
-        current_line_sign=${line:$line_index:1}
-        current_expression_sign=${expression:$expression_index:1}
-	
+
+	compareable_expression=""
+	compareable_source=""
+
+
 	if (( $match_whole_lines_status == 0 )); then
-		test "$line" = "$expression"
-
-	elif (( $case_insensitive_status == 0 )); then
-
-		# case insensitive variables
-		current_line_sign_ignore_case_sensitive=${current_line_sign^^}
-        	expression_line_sign_ignore_case_sensitive=${current_expression_sign^^}
-
-		test "$current_line_sign_ignore_case_sensitive" = "$expression_line_sign_ignore_case_sensitive"
+		compareable_expression=$expression
+		compareable_source=$line
 	else
-		test "$current_line_sign" = "$current_expression_sign"
+		compareable_source=${line:$line_index:1}
+                compareable_expression=${expression:$expression_index:1}
 	fi
 
-		match_comparison_status=$?
+
+	if (( $case_insensitive_status == 0 )); then
+		compareable_expression=${compareable_expression^^}
+		compareable_source=${compareable_source^^}
+	fi
+	
+	if (( $invert_output_status == 0 )); then
+
+		test ! $compareable_expression = $compareable_source
+	else
+		test $compareable_expression = $compareable_source 
+	fi
+	match_comparison_status=$?
 }
 
 
@@ -92,27 +88,20 @@ function prepareAndAddMatch (){
 	#$1 - line number
 	#$2 - source name
 	#$3 - line to add
-	
 	match=""
 
 	if (( $line_numbers_status == 0 )); then
 		match+="$1:"
 	fi
 
-
-
 	if (( $print_only_names_status == 0 )); then
-
 		match="$2"
 	else
 		match+=$3
 	fi
 	
-	
-	
 	if (( $match_whole_lines_status == 0 )); then
 		matches+=(["$line_number"]="$match")
-	
 	else
 		matches+=("$match")
 	fi
@@ -128,32 +117,45 @@ function prepareAndAddMatch (){
 source_number=1
 for src in "${sources[@]}"
 do
-	validateFlags "$line_numbers_status" "$print_only_names_status"
 	line_number=1
 
+	found_false_match_while_invert_output=1
 	#iterate through lines in txt
 	while read line; do 
-
 		# iterate through the every sign of line
 		for (( i=0; i < ${#line}; i++ ))
                 do
-						
+			if (( $found_false_match_while_invert_output == 0 )); then
+			  
+				found_false_match_while_invert_output=1
+				break
+			fi
 			# iterate through the every sign of expression
                         for (( j=0; j < ${#expression}; j++ ))
                         do	
 				
 				let index=$i+$j
 				setMatchComparisonStatus "$line" "$index" "$j"
-				if (( $invert_output_status == 1 )) && (( $match_comparison_status == 0 )) && (( j+1 == ${#expression} )); then 
-					
-					prepareAndAddMatch "$line_number" "$src" "$line"
+				# START OF INVERT OUTPUT SECTION
+				if (( $invert_output_status == 0 )) && (( $match_comparison_status == 1 )) && (( j+1 == ${#expression} )); then
 				
-				elif (( $invert_output_status == 1 )) && (( $match_comparison_status == 0 )); then
+					found_false_match_while_invert_output=0
+					break	
+				elif (( $invert_output_status == 0 )) && (( $match_comparison_status == 0 )) && (( i + 1 == ${#line} )); then
+					prepareAndAddMatch "$line_number" "$src" "$line"
+					break
+				elif (( $invert_output_status == 0 )) && (( $match_comparison_status == 0 )); then
+					break
+				elif (( $invert_output_status == 0 )) && (( $match_comparison_status == 1 )); then
+					continue
+				# END OF INVERT OUTPUT SECTION
+				elif (( $match_comparison_status == 0 )) && (( j+1 == ${#expression} )); then 
+					prepareAndAddMatch "$line_number" "$src" "$line"
+				elif (( $match_comparison_status == 0 )); then
 					continue
 				else
 					break
 				fi
-
 			done
 		done
 		(( line_number++  ))	
