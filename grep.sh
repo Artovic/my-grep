@@ -78,6 +78,26 @@ function setMatchComparisonStatus (){
 
 		test ! $compareable_expression = $compareable_source
 	else
+	#	echo debug - to linia $line	
+	#	echo debug - compareable source : $compareable_source
+	#	echo debug - compareable expression :  $compareable_expression
+	
+
+	if [[ $compareable_expression = "" ]]
+	then
+		echo znalazłem wadliwe expression
+	fi
+
+	if [[ $compareable_source = "" ]]
+        then
+		
+                echo znalazłem wadliwe source
+        	echo line index jest wtedy $line_index
+		echo długość lini natomiast ${#line}
+	fi
+
+
+
 		test $compareable_expression = $compareable_source 
 	fi
 	match_comparison_status=$?
@@ -88,23 +108,43 @@ function prepareAndAddMatch (){
 	#$1 - line number
 	#$2 - source name
 	#$3 - line to add
+	#$4 - source number
+	#echo prepareMatchFunction: source_number: $4
+	# Hierarchy of pushing to matches: 1.File names OR and only OR
+	
 	match=""
 
-	if (( $line_numbers_status == 0 )); then
-		match+="$1:"
-	fi
+	
+	
+
+
 
 	if (( $print_only_names_status == 0 )); then
-		match="$2"
+		matches+=(["$4"]="$2")
 	else
-		match+=$3
-	fi
+
+		if (( ${#sources[@]} > 1 )); then
+			match+="$2:"	
+		fi
+
+		if (( $line_numbers_status == 0 )); then
+			match+="$1:"
+		fi
+
+
 	
-	if (( $match_whole_lines_status == 0 )); then
-		matches+=(["$line_number"]="$match")
-	else
-		matches+=("$match")
+			match+=$3
+		if (( $match_whole_lines_status == 0 )); then
+			matches+=(["$line_number"]="$match")
+		else
+			matches+=("$match")
+		fi
+
+
+	#	match+=$3
 	fi
+
+
 }
 
 
@@ -135,6 +175,11 @@ do
                         do	
 				
 				let index=$i+$j
+				if (( $index >= ${#line} )); then
+					break
+				fi
+
+				
 				setMatchComparisonStatus "$line" "$index" "$j"
 				# START OF INVERT OUTPUT SECTION
 				if (( $invert_output_status == 0 )) && (( $match_comparison_status == 1 )) && (( j+1 == ${#expression} )); then
@@ -142,7 +187,7 @@ do
 					found_false_match_while_invert_output=0
 					break	
 				elif (( $invert_output_status == 0 )) && (( $match_comparison_status == 0 )) && (( i + 1 == ${#line} )); then
-					prepareAndAddMatch "$line_number" "$src" "$line"
+					prepareAndAddMatch "$line_number" "$src" "$line" "$source_number"
 					break
 				elif (( $invert_output_status == 0 )) && (( $match_comparison_status == 0 )); then
 					break
@@ -150,7 +195,7 @@ do
 					continue
 				# END OF INVERT OUTPUT SECTION
 				elif (( $match_comparison_status == 0 )) && (( j+1 == ${#expression} )); then 
-					prepareAndAddMatch "$line_number" "$src" "$line"
+					prepareAndAddMatch "$line_number" "$src" "$line" "$source_number"
 				elif (( $match_comparison_status == 0 )); then
 					continue
 				else
@@ -160,9 +205,11 @@ do
 		done
 		(( line_number++  ))	
 	done <<< `cat $src`
+
 	
 	line_number=1
-        (( source_number++ ))
+	(( source_number++ ))
+
 done
 
 printf "%s\n" "${matches[@]}"
