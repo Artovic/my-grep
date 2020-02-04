@@ -1,23 +1,20 @@
 #!/usr/bin/env bash
-
-
+# ARRAYS OF MACHES AND SOURCES
 declare -a sources
 declare -a matches
+
 IFS=""
 params=($@)
 
+# FLAG STATUES
 line_numbers_status=1
 print_only_names_status=1
 case_insensitive_status=1
 invert_output_status=1
 match_whole_lines_status=1
 
-
-is_expression_set=0
 expression=""
-nl=$'\n'
-
-IFS=""
+is_expression_set=0
 for param in "${params[@]}"
 do
 
@@ -31,7 +28,6 @@ do
         then
                 expression="$param"
                 is_expression_set=1
-
 
         elif ! [[ -r $param ]]
         then
@@ -47,18 +43,16 @@ match_comparison_status=""
 function setMatchComparisonStatus (){
 
 	#$1 - line
-        line=$1
+        local line=$1
 
         #$2 - current index sign of line
-        line_index=$2
+        local line_index=$2
 
         #$3 - expression index
-        expression_index=$3
+        local expression_index=$3
 
-
-	compareable_expression=""
-	compareable_source=""
-
+	local compareable_expression=""
+	local compareable_source=""
 
 	if (( $match_whole_lines_status == 0 )); then
 		compareable_expression=$expression
@@ -78,28 +72,9 @@ function setMatchComparisonStatus (){
 
 		test ! $compareable_expression = $compareable_source
 	else
-	#	echo debug - to linia $line	
-	#	echo debug - compareable source : $compareable_source
-	#	echo debug - compareable expression :  $compareable_expression
-	
-
-	if [[ $compareable_expression = "" ]]
-	then
-		echo znalazłem wadliwe expression
-	fi
-
-	if [[ $compareable_source = "" ]]
-        then
-		
-                echo znalazłem wadliwe source
-        	echo line index jest wtedy $line_index
-		echo długość lini natomiast ${#line}
-	fi
-
-
-
 		test $compareable_expression = $compareable_source 
 	fi
+
 	match_comparison_status=$?
 }
 
@@ -109,15 +84,9 @@ function prepareAndAddMatch (){
 	#$2 - source name
 	#$3 - line to add
 	#$4 - source number
-	#echo prepareMatchFunction: source_number: $4
 	# Hierarchy of pushing to matches: 1.File names OR and only OR
 	
 	match=""
-
-	
-	
-
-
 
 	if (( $print_only_names_status == 0 )); then
 		matches+=(["$4"]="$2")
@@ -130,21 +99,10 @@ function prepareAndAddMatch (){
 		if (( $line_numbers_status == 0 )); then
 			match+="$1:"
 		fi
-
-
-	
-			match+=$3
-		if (( $match_whole_lines_status == 0 )); then
-			matches+=(["$line_number"]="$match")
-		else
-			matches+=("$match")
-		fi
-
-
-	#	match+=$3
+		
+		match+=$3
+		matches+=(["$4$1"]="$match")
 	fi
-
-
 }
 
 
@@ -175,6 +133,7 @@ do
                         do	
 				
 				let index=$i+$j
+				#index have to be less than length of the examined line
 				if (( $index >= ${#line} )); then
 					break
 				fi
